@@ -114,5 +114,8 @@ class Controller:
         Args:
             id (str): ID of the guest to be deleted
         """
-        self.df = self.df[self.df["id"] != id]
+        try:
+            self.df = self.df[self.df["id"] != id]
+        except KeyError:
+            raise NotFoundError(id)
         self._commit()
