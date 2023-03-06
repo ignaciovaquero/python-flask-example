@@ -1,3 +1,13 @@
+"""The controller for the flask application.
+
+The controller for the flask application, that is in charge of handling
+the interaction with our database.
+
+Typical usage example:
+    my_controller = Controller(filename=my_file)
+    my_controller.get(id=guest_id)
+"""
+
 import os
 import logging
 import pandas as pd
@@ -25,18 +35,30 @@ class NotFoundError(Exception):
 
 @dataclass
 class Controller:
-    filename: str
-    df: pd.DataFrame = field(init=False)
+    """The Controller for interacting with the database.
 
-    def __post_init__(self):
+    The Controller class interacts with the database. It has methods for
+    getting a single Guest, getting all the guests, and saving and deleting
+    a Guest.
+
+    Attributes:
+        filename (str): Path to the file to be used for storing the database.
+            This can be an absolute or a relative path.
+    """
+
+    filename: str
+    _df: pd.DataFrame = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Initializes the private pd.DataFrame of the instance"""
         if exists(self.filename):
-            self.df = pd.read_csv(filepath_or_buffer=self.filename)
+            self._df = pd.read_csv(filepath_or_buffer=self.filename)
             return
-        self.df = pd.DataFrame()
+        self._df = pd.DataFrame()
 
     def _commit(self) -> None:
         """Commits the DataFrame in the csv file"""
-        self.df[["id", "name", "last_name", "plus_one"]].to_csv(
+        self._df[["id", "name", "last_name", "plus_one"]].to_csv(
             self.filename, index=False
         )
 
@@ -53,7 +75,7 @@ class Controller:
                     record.get("last_name", ""),
                     record.get("plus_one", False),
                 ),
-                self.df.to_dict("records"),
+                self._df.to_dict("records"),
             )
         )
 
@@ -70,7 +92,7 @@ class Controller:
             Guest: Guest returned from the database
         """
         try:
-            query_data = self.df.query("id == @id")
+            query_data = self._df.query("id == @id")
         except UndefinedVariableError:
             raise NotFoundError(id)
         if query_data.size <= 0:
@@ -87,13 +109,13 @@ class Controller:
             guest (Guest): The guest to store in the database
         """
         try:
-            if self.df.query("id == @guest.id").size:
+            if self._df.query("id == @guest.id").size:
                 raise ConflictError(guest.id)
         except UndefinedVariableError:
             pass
-        self.df = pd.concat(
+        self._df = pd.concat(
             [
-                self.df,
+                self._df,
                 pd.DataFrame(
                     data=[
                         {
@@ -115,7 +137,7 @@ class Controller:
             id (str): ID of the guest to be deleted
         """
         try:
-            self.df = self.df[self.df["id"] != id]
+            self._df = self._df[self._df["id"] != id]
         except KeyError:
             raise NotFoundError(id)
         self._commit()
